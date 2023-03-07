@@ -31,5 +31,6 @@ double Read_Right_ENC_CHAN_A();
 double Read_Right_ENC_CHAN_B();
 double Read_Left_ENC_CHAN_A();
 double Read_Left_ENC_CHAN_B();
+void display_encoders();
 
 

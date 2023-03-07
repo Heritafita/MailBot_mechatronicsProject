@@ -139,3 +139,17 @@ double Read_Left_ENC_CHAN_A(){
 double Read_Left_ENC_CHAN_B(){
   return Left_ENC_CHAN_B_Ticks; 
 }
+
+void display_encoders(){
+Serial.println("Right_ENC_CHAN_A : ");
+Serial.println(Read_Right_ENC_CHAN_A());
+delay (50);
+Serial.println("Right_ENC_CHAN_B : ");
+Serial.println(Read_Right_ENC_CHAN_B());
+delay (50);
+Serial.println("Left_ENC_CHAN_A : ");
+Serial.println(Read_Left_ENC_CHAN_A());
+delay (50);
+Serial.println("Left_ENC_CHAN_B : ");
+Serial.println(Read_Left_ENC_CHAN_B());
+} 
