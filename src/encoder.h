@@ -25,12 +25,15 @@
 
 // void Init_Encoders(int right_ENC_CHAN_A, int right_ENC_CHAN_B, int left_ENC_CHAN_A, int left_ENC_CHAN_B);
 void Init_Encoders();
-void SwitchRightEncoder();
-void SwitchLeftEncoder();
+void SwitchRightEncoderA();
+void SwitchRightEncoderB();
+void SwitchLeftEncoderA();
+void SwitchLeftEncoderB();
 double Read_Right_ENC_CHAN_A();
 double Read_Right_ENC_CHAN_B();
 double Read_Left_ENC_CHAN_A();
 double Read_Left_ENC_CHAN_B();
 void display_encoders();
+double traveled_distance();
 
 

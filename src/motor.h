@@ -12,3 +12,5 @@
 void init_motors();
 void move_forward(int pwmA, int pwmB);
 void stop_motors();
+void move_left(int pwmA, int pwmB);
+void move_right(int pwmA, int pwmB);
