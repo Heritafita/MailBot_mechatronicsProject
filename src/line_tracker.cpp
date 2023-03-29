@@ -47,5 +47,5 @@ Serial.println(Right1());
 Serial.print("Right2: ");
 Serial.println(Right2());
 // Serial.println(" ");
-// delay (100);
+delay (500);
 } 
