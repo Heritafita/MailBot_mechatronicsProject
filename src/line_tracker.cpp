@@ -2,7 +2,6 @@
 #include "Arduino.h"
 
 
-
 void init_tracker(){
 pinMode(L1, INPUT_PULLDOWN);
 pinMode(L2, INPUT_PULLDOWN);
@@ -14,15 +13,21 @@ pinMode(L5, INPUT_PULLDOWN);
 int Center(){
    return analogRead(L3);
 }
+
+
 int Left1(){
     return analogRead(L2);
 }
+
+
 int Left2(){
     return analogRead(L1);
 }
+
 int Right1(){
     return analogRead(L4);
 }
+
 int Right2(){
     return analogRead(L5);
 }

@@ -1,0 +1,44 @@
+// #include <stdbool.h>
+
+bool isBusy = false;
+int threshold = 4000;
+
+// #Fonction pour avancer en fonction d'un n° de bureau recu
+void Send(int dest, int start_pos){
+	// #def vars
+	int old_dest = dest;
+	int actual_pos = start_pos;
+	// int cooldown = 0;  //cooldown pour éviter de voir plusieurs fois le même bureau
+	isBusy = true;  //var global
+	// #main
+	if (dest < start_pos){
+		change_direction();}
+	while (actual_pos != old_dest)
+	{
+		move_regulation();
+		// if (Detect_Office && (cooldown == 0)){
+		if (Detect_Office) {
+			if (dest > start_pos){
+				actual_pos += 1;}
+			else {
+				actual_pos -= 1;
+			}
+			// cooldown = 50; // arbitraire
+			}
+		// if (cooldown != 0) {
+		// 	cooldown -=1;	}
+		// 	}
+	isBusy = false;}
+}
+
+// // #Renvoi l'état du robot (occupé//libre)
+// bool get_isBusy(){
+// 	return isBusy;}
+
+// bool Detect_Office(){ // Be aware, depends on line thikness and mail loop excecution time
+// 	if ( Left2()<threshold && Left1()<threshold && Center()<threshold && Right1()<threshold && Right2()<threshold)
+
+// 		{return true;}
+// 	else 
+// 		{return false;}
+// }
