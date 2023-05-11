@@ -39,8 +39,8 @@ digitalWrite(dir1, LOW);
 // digitalWrite(in2, LOW);
 digitalWrite(dir2, LOW);
 // digitalWrite(in4, HIGH);
-analogWrite(pwm1, speedA);
-analogWrite(pwm2, speedB);
+analogWrite(pwm1,speedA);
+analogWrite(pwm2,speedB);
 }
 
 void move_backward(int pwmA, int pwmB){
@@ -48,7 +48,7 @@ int speedA = pwmA;
 int speedB = pwmB;
 digitalWrite(dir1, HIGH);
 // digitalWrite(in2, HIGH);
-digitalWrite(dir2, HIGH);
+digitalWrite(dir2, LOW);
 // digitalWrite(in4, LOW);
 analogWrite(pwm1, speedA);
 analogWrite(pwm2, speedB);
