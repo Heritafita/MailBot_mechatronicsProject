@@ -1,0 +1,44 @@
+#include <ArduinoJson.h>
+#include <HardwareSerial.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+ 
+
+#define SCREEN_WIDTH 128 // Largeur de l'écran OLED en pixels
+#define SCREEN_HEIGHT 64 // Hauteur de l'écran OLED en pixels
+#define OLED_RESET -1    // Nécessaire pour les écrans OLED qui ne disposent pas d'un RST dédié
+
+ 
+
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+ 
+
+// Déclaration du port série
+HardwareSerial SerialESP(0);
+int Destination;
+
+ 
+
+void setup() {
+  // Ouverture du port série à 9600 bauds
+  Serial.begin(115200);
+  SerialESP.begin(115200, SERIAL_8N1, 26, 27);
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+  display.clearDisplay();
+  display.setTextColor(WHITE);
+  display.setCursor(0, 0);
+  display.print("Balance ESP32");
+  display.display();
+
+ 
+
+}
+char c;
+
+ 
+
+void loop() {
+  while(Serial.available() > 0) {

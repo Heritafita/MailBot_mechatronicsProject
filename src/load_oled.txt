@@ -1,0 +1,68 @@
+#include <AceWire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include "HX711.h"
+ 
+#define SCREEN_WIDTH 128 // Largeur de l'écran OLED en pixels
+#define SCREEN_HEIGHT 64 // Hauteur de l'écran OLED en pixels
+#define OLED_RESET -1    // Nécessaire pour les écrans OLED qui ne disposent pas d'un RST dédié
+
+
+
+
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+const int DOUT= 5;
+const int CLK= 4;
+
+HX711 scale;
+int reading;
+int lastReading;
+#define calibration_factor -800
+// int incertitude=15;
+
+//const int buzzerPin = 17; // Broche du buzzer
+// const int weightLimit = 1000; // Poids limite en grammes
+//bool isOverWeight = false; // Drapeau pour indiquer si le poids est supérieur à la limite
+
+void setup() {
+    Serial.begin(115200);
+    scale.begin(DOUT, CLK);
+    // scale.set_gain(128);
+    // scale.set_scale(calibration_factor);
+    
+    display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+    display.clearDisplay();
+    display.setTextColor(WHITE);
+    scale.set_scale(450.0f); // Étalonnage de la HX711 pour obtenir les bonnes valeurs en grammes
+    //scale.set_scale(450.5F); // Étalonnage de la HX711 pour obtenir les bonnes valeurs en grammes
+    scale.tare();
+    display.setCursor(0, 0);
+    display.print("Balance ESP32");
+    display.display();
+
+    
+    delay(100);
+}
+
+void loop() {
+    int weight = scale.get_units(10);
+    display.clearDisplay();
+    display.setCursor(0,0);
+    display.print("Poids: ");
+    display.print(weight);
+    display.print(" g");
+    display.setCursor(0,20);
+    display.print("Pos :");
+    display.setCursor(0,30);
+    display.print("Dest :");    
+    display.display();
+
+    Serial.println(weight);
+
+    // if (reading !=lastReading){
+    //     display.display(reading);
+    // }
+
+    delay(100); // Attendre un court instant avant de prendre une nouvelle mesure
+}

@@ -48,7 +48,7 @@ int speedA = pwmA;
 int speedB = pwmB;
 digitalWrite(dir1, HIGH);
 // digitalWrite(in2, HIGH);
-digitalWrite(dir2, LOW);
+digitalWrite(dir2, HIGH);
 // digitalWrite(in4, LOW);
 analogWrite(pwm1, speedA);
 analogWrite(pwm2, speedB);

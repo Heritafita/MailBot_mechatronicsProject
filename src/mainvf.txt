@@ -4,18 +4,14 @@
 #include "ultrasound.h"
 #include "line_tracker.h"
 
+#include <ArduinoJson.h>
+#include <HardwareSerial.h>
 #include <AceWire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include "HX711.h"
-#include <ArduinoJson.h>
-#include <HardwareSerial.h>
-
-// Loadcell
 HX711 scale;
 #define calibration_factor -800
-
-//OLED display
 
 #define SCREEN_WIDTH 128 // Largeur de l'écran OLED en pixels
 #define SCREEN_HEIGHT 64 // Hauteur de l'écran OLED en pixels
@@ -23,87 +19,47 @@ HX711 scale;
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 HardwareSerial SerialESP(0);
 
-// ultrasound
 const int DOUT= 5;
 const int CLK= 4;
 
-int default_speed = 70;
-int speedA = 70;
-int speedB = 70;
+int default_speed = 90;
+int speedA = 0;
+int speedB = 0;
 bool isBusy = false;
 bool dir_changed = false;
-bool Office_detected = false;
-const int buzzerPin = 17;
+bool detect = false;
+int n_loop = 0;
 
 
-// Move regulation
+// int move = 60;
 
 int threshold = 3800;
 
-int pos = 0; // actual position
-int dest = 0; // destination
+int pos = 0;
+int dest = 0;
 
 int weight=0;
-int moving_sensor[5]={0,0,0,0,0};
-int moving_sensor2[5]={0,0,0,0,0};
+int capteurs[5]={0,0,0,0,0};
+int capteurs2[5]={0,0,0,0,0};
 
 int n_mem = 9;
 int memory[9][5]={{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
 int l_mem[5]={0,0,0,0,0};
-int selected_line[5]={0,0,0,0,0};
+int ligne_choisie[5]={0,0,0,0,0};
 
 
-int ponderation_g[5] = {-3,-1,0,1,3};
-int ponderation_d[5] = {3,1,0,-1,-3};
+int ponderation_g[5] = {-3,-1,0,1,3}; // Proportionnel
+int ponderation_d[5] = {3,1,0,-1,-3}; // Proportionnel
 int tab_time[9]={6,5,-3,2,-1,1,-1,1,-1};
 
 
-void acquisition(){
-    moving_sensor[0]=Left2();
-    moving_sensor[1]=Left1();
-    moving_sensor[2]=Center();
-    moving_sensor[3]=Right1();
-    moving_sensor[4]=Right2();
-    moving_sensor2[0]=moving_sensor[0];
-    moving_sensor2[1]=moving_sensor[1];
-    moving_sensor2[2]=moving_sensor[2];
-    moving_sensor2[3]=moving_sensor[3];
-    moving_sensor2[4]=moving_sensor[4];
-}
-
-void keep_memory(){
-    for (int i=0; i<(n_mem); i++){
-        for (int j=0; j<5;j++){
-            memory[n_mem-i][j] = memory[n_mem-1-i][j];
-        }
-    }
-    for (int i=0;i<5;i++){
-        if(moving_sensor[i]<threshold){
-            memory[0][i] = 1;
-        }
-        else{
-            memory[0][i] = 0;
-        }
-    }
-}
-
-void clean_mem(){
-    for(int i=0;i<n_mem;i++){
-        for(int j=0;j<5;j++){
-            memory[i][j]=0;
-        }
-    }
-}
-
-
-
 String getBotstate() {
-  String botstate[4] = {"idle", "busy", "error","off"};
+  //String botstate[4] = {"idle", "busy", "error","off"};
   if (!isBusy) {
-    return botstate[0];
+    return "idle";
   }
-  else {
-    return botstate[1];
+  else if (isBusy) {
+    return "busy";
   }
 }
 
@@ -124,12 +80,47 @@ void listenDest(){
   }
 }
 
+void acquisition(){
+    capteurs[0]=Left2();
+    capteurs[1]=Left1();
+    capteurs[2]=Center();
+    capteurs[3]=Right1();
+    capteurs[4]=Right2();
+    capteurs2[0]=capteurs[0];
+    capteurs2[1]=capteurs[1];
+    capteurs2[2]=capteurs[2];
+    capteurs2[3]=capteurs[3];
+    capteurs2[4]=capteurs[4];
+}
 
+void keep_memory(){
+    for (int i=0; i<(n_mem); i++){
+        for (int j=0; j<5;j++){
+            memory[n_mem-i][j] = memory[n_mem-1-i][j];
+        }
+    }
+    for (int i=0;i<5;i++){
+        if(capteurs[i]<threshold){
+            memory[0][i] = 1;
+        }
+        else{
+            memory[0][i] = 0;
+        }
+    }
+}
+
+void clean_mem(){
+    for(int i=0;i<n_mem;i++){
+        for(int j=0;j<5;j++){
+            memory[i][j]=0;
+        }
+    }
+}
 
 void displayAll(){ 
     display.clearDisplay();
     display.setCursor(0,0);
-    display.print("Weight: ");
+    display.print("Poids: ");
     display.print(weight);
     display.print(" g");
     display.setCursor(0,20);
@@ -138,27 +129,29 @@ void displayAll(){
     display.setCursor(0,40);
     display.print("Dest: ");
     display.print(dest);
+    display.setCursor(0,55);
+    display.print(getBotstate());
     display.display();
 }
 
-void check_office(){
+void check_bureau(){
     if(memory[0][1]==1 && memory[0][2]==1 && memory[0][3]==1 && (memory[0][4]==1||memory[0][0]==1)){
-        // Serial.print("Nouveau bureau Office_detectede \n");
+        Serial.print("Nouveau bureau detecte \n");
         if(pos<dest){
             pos+=1;
         }
         else if(dest<pos){
             pos-=1;
         }
-        Office_detected = true;
-        displayAll();
-        sendData();
+        detect = true;
+        // sendData();
+        // displayAll();
     }
 }
-
-void select_line(int tab[9][5], int n){
+   
+void chose_line(int tab[9][5], int n){
     for(int i=0;i<5;i++){
-        selected_line[i]=tab[n][i];
+        ligne_choisie[i]=tab[n][i];
     }
 }
 
@@ -178,60 +171,67 @@ int cal_g(int tab[5]){
     return res;
 }
 
-void Compute_regulation(int tab[9][5]){
-    // make a copy of memory array on a new array
+void calcul_reg(int tab[9][5]){
+    // On prend chaque ligne 1 à 1...
     int tab0[5]={0,0,0,0,0};
-    select_line(tab,0);
+    chose_line(tab,0);
     for(int i=0;i<5;i++){
-        tab0[i]=selected_line[i];
+        tab0[i]=ligne_choisie[i];
     }
 
-    select_line(tab,1);
+    chose_line(tab,1);
     int tab1[5]={0,0,0,0,0};
     for(int i=0;i<5;i++){
-        tab1[i]=selected_line[i];
+        tab1[i]=ligne_choisie[i];
     }
 
-    select_line(tab,2);
+    chose_line(tab,2);
     int tab2[5]={0,0,0,0,0};
     for(int i=0;i<5;i++){
-        tab2[i]=selected_line[i];
+        tab2[i]=ligne_choisie[i];
     }
 
-    select_line(tab,3);
+    chose_line(tab,3);
     int tab3[5]={0,0,0,0,0};
     for(int i=0;i<5;i++){
-        tab3[i]=selected_line[i];
+        tab3[i]=ligne_choisie[i];
     }
-    select_line(tab,4);
+    chose_line(tab,4);
     int tab4[5]={0,0,0,0,0};
     for(int i=0;i<5;i++){
-        tab4[i]=selected_line[i];
+        tab4[i]=ligne_choisie[i];
     }
-    select_line(tab,5);
+    chose_line(tab,5);
     int tab5[5]={0,0,0,0,0};
     for(int i=0;i<5;i++){
-        tab5[i]=selected_line[i];
+        tab5[i]=ligne_choisie[i];
     }
-    select_line(tab,6);
+    chose_line(tab,6);
     int tab6[5]={0,0,0,0,0};
     for(int i=0;i<5;i++){
-        tab6[i]=selected_line[i];
+        tab6[i]=ligne_choisie[i];
     }
-    select_line(tab,7);
+    chose_line(tab,7);
     int tab7[5]={0,0,0,0,0};
     for(int i=0;i<5;i++){
-        tab7[i]=selected_line[i];
+        tab7[i]=ligne_choisie[i];
     }
-    select_line(tab,8);
+    chose_line(tab,8);
     int tab8[5]={0,0,0,0,0};
     for(int i=0;i<5;i++){
-        tab8[i]=selected_line[i];
+        tab8[i]=ligne_choisie[i];
     }
-    // Compute regulated speed of each wheel
+    // ... Puis on calcule la vitesse régulée
     speedA = default_speed+tab_time[0]*cal_g(tab0)+tab_time[1]*cal_g(tab1)+tab_time[2]*cal_g(tab2)+tab_time[3]*cal_g(tab3)+tab_time[4]*cal_g(tab4)+tab_time[5]*cal_g(tab5)+tab_time[6]*cal_g(tab6)+tab_time[7]*cal_g(tab7)+tab_time[8]*cal_g(tab8);
     speedB = default_speed+tab_time[0]*cal_d(tab0)+tab_time[1]*cal_d(tab1)+tab_time[2]*cal_d(tab2)+tab_time[3]*cal_d(tab3)+tab_time[4]*cal_d(tab4)+tab_time[5]*cal_d(tab5)+tab_time[6]*cal_d(tab6)+tab_time[7]*cal_d(tab7)+tab_time[8]*cal_d(tab8);
-   
+    /* // PID classique impossible => il va faire des oscillations (supposition)
+    integ+= Ki_Te*cal_g(tab0);
+    inted+= Ki_Te*cal_d(tab0);
+    speedA = default_speed+ Kp(cal_g(tab0)+integ+Kd/Te*(cal_g(tab0)-e0g));
+    speedB = default_speed+ Kp(cal_d(tab0)+inted+Kd/Te*(cal_d(tab0)-e0d));
+    e0g = cal_g(tab0);
+    e0d = cal_d(tab0);
+    */
 }
 
 
@@ -267,7 +267,7 @@ void turn_right(){
 
 void change_direction(){
     move_backward(default_speed,default_speed);
-    double ticks_for_turn = 475;
+    double ticks_for_turn = 465;
     double  previous_ticks = Read_Left_ENC_CHAN_A();
     double  actual_ticks = Read_Left_ENC_CHAN_A();
     double ticks = 0;
@@ -283,14 +283,27 @@ void change_direction(){
 
 
 void move_regulation(){
-    if ( moving_sensor[0]>threshold && moving_sensor[1]>threshold && moving_sensor[2]>threshold && moving_sensor[3]>threshold && moving_sensor[4]>threshold){
+    if ( capteurs[0]>threshold && capteurs[1]>threshold && capteurs[2]>threshold && capteurs[3]>threshold && capteurs[4]>threshold){
         stop_motors();
         clean_mem();
     }
-    else if (moving_sensor[0]<threshold && moving_sensor[1]>threshold && moving_sensor[2]>threshold && moving_sensor[3]>threshold && moving_sensor[4]<threshold){
+    else if (capteurs[0]<threshold && capteurs[1]>threshold && capteurs[2]>threshold && capteurs[3]>threshold && capteurs[4]<threshold){
         stop_motors();
         clean_mem();
     }
+    // On a atteint la destination
+    /*else if( capteurs[0]<threshold && capteurs[1]<threshold && capteurs[2]<threshold && capteurs[3]<threshold && capteurs[4]<threshold && pos == dest){
+        stop_motors();
+        send_notif();
+    }
+    //move left
+    else if ( capteurs[0]<threshold && capteurs[1]<threshold && capteurs[2]<threshold && capteurs[3]>threshold && capteurs[4]>threshold){
+        turn_left();
+    }
+    //move right
+    else if ( capteurs[0]>threshold && capteurs[1]>threshold && capteurs[2]<threshold && capteurs[3]<threshold && capteurs[4]<threshold){
+        turn_right();
+    }*/
     else if (memory[0][0]==1 || memory[0][1]==1 || memory[0][2]==1 || memory[0][3]==1 || memory[0][4]==1){
         move_forward(speedA,speedB);
     }
@@ -300,17 +313,11 @@ void move_regulation(){
     }
 }
 
-void set_dest(int n_bureau){
-    if(!isBusy){
-        dest=n_bureau;
-        isBusy=true;
-        delay(2000);
-    }
-}
 
 void move(){
     isBusy=true;
-    clean_mem();
+    sendData();
+    displayAll();
     while((pos!=dest)){
         if (((dest<pos)&&(!dir_changed))||((dest>pos)&&(dir_changed))){
             change_direction();
@@ -324,13 +331,14 @@ void move(){
         else{
         acquisition();
         keep_memory();
-        if (!Office_detected){
-            check_office();
+        if (!detect){
+            check_bureau();
+            
         }
         else if(memory[0][0]==1 && memory[0][4]==1){
-            Office_detected=false;
+            detect=false;
         }
-        Compute_regulation(memory);      
+        calcul_reg(memory);      
         move_regulation();
         }
     }
@@ -338,63 +346,77 @@ void move(){
         stop_motors();
         clean_mem();
         isBusy=false;
+        //n_loop+=1;
     }
 }
 
 void weigh(){
     weight = scale.get_units(10);
-    // affWeight = weight/1000; // conversion to kg
-}
-
-void overload_alert(){
-    tone(buzzerPin, 550);
-    weigh();
-    sendData();
-    display.clearDisplay();
-    display.setCursor(0,0);
-    display.setTextSize(3);
-    display.print("Warning !");
-    display.setCursor(0,30);
-    display.setTextSize(2);
-    display.print("Overload :");
-    display.display();
-    dest=pos;
 }
 
 void setup() {
     Serial.begin(115200);
-    pinMode(buzzerPin, OUTPUT);
     Init_Encoders();
     init_motors();
-    init_untrasounds();   
+    init_untrasounds();  
     init_tracker();
+
     display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
     display.clearDisplay();
     display.setTextColor(WHITE);
     display.setTextSize(1);
     display.setCursor(0, 0);
     display.display();
+
     scale.begin(DOUT, CLK);
     scale.set_scale(450.0f);
     scale.tare();
-    displayAll();
+    //sendData();
+
+
+
+    // scale.set_gain(128);
+    // scale.tare(); // Mise à zéro de la balance
+    // //pinMode(buzzerPin, OUTPUT);
+    // display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+    // display.clearDisplay();
+    // display.setTextColor(WHITE);
+
+//scale.set_scale(2280.0f); // Étalonnage de la HX711 pour obtenir les bonnes valeurs en grammes
+//scale.set_scale(450.5F); // Étalonnage de la HX711 pour obtenir les bonnes valeurs en grammes
+    // display.setCursor(0, 0);
+    // display.print("Balance ESP32");
+    // display.display();
 }
 
 void loop() {
-   while((pos==dest)){
+    while((pos==dest)){
         stop_motors();
         sendData();
         listenDest();
         weigh();
         displayAll();
+        //display.clearDisplay();
+        //Serial.println(speedA);
+        //sendData();// add delay
     }
-    if(weight<1000){
-    move();
+    // delay(1000);
+    if(pos!=dest){
+        move();
+        sendData();
     }
-    else
-    { 
-     while (weight>1000) {
-        overload_alert();}        
- }
-tone(buzzerPin, 0);
+
+
+    // switch_ultrasounds();
+    // if((read_ultrasound1()<30)||(read_ultrasound2()<30)){
+    //     stop_motors();
+    //     clean_mem();
+    // }
+    // else{
+    //move();
+    // }
+
+//&&(capteurs[0]<threshold||capteurs[1]<threshold||capteurs[2]<threshold||capteurs[3]<threshold||capteurs[4]<threshold)
+
+
 }
