@@ -27,9 +27,10 @@ HardwareSerial SerialESP(0);
 const int DOUT= 5;
 const int CLK= 4;
 
-int default_speed = 70;
-int speedA = 70;
-int speedB = 70;
+int default_speed = 80;
+int speedA = 0;
+int speedB = 0;
+
 bool isBusy = false;
 bool dir_changed = false;
 bool Office_detected = false;
@@ -53,8 +54,8 @@ int l_mem[5]={0,0,0,0,0};
 int selected_line[5]={0,0,0,0,0};
 
 
-int ponderation_g[5] = {-3,-1,0,1,3};
-int ponderation_d[5] = {3,1,0,-1,-3};
+int left_ponderation[5] = {-3,-1,0,1,3};
+int right_ponderation[5] = {3,1,0,-1,-3};
 int tab_time[9]={6,5,-3,2,-1,1,-1,1,-1};
 
 
@@ -87,7 +88,7 @@ void keep_memory(){
     }
 }
 
-void clean_mem(){
+void clean_memory(){
     for(int i=0;i<n_mem;i++){
         for(int j=0;j<5;j++){
             memory[i][j]=0;
@@ -162,79 +163,33 @@ void select_line(int tab[9][5], int n){
     }
 }
 
-int cal_d(int tab[5]){
+int right_regulation(int tab[5]){
     int res = 0;
     for(int i=0;i<5;i++){
-        res+=tab[i]*ponderation_d[i];
+        res+=tab[i]*right_ponderation[i];
     }
     return res;
 }
 
-int cal_g(int tab[5]){
+int left_regulation(int tab[5]){
     int res = 0;
     for(int i=0;i<5;i++){
-        res+=tab[i]*ponderation_g[i];
+        res+=tab[i]*left_ponderation[i];
     }
     return res;
 }
 
-void Compute_regulation(int tab[9][5]){
-    // make a copy of memory array on a new array
-    int tab0[5]={0,0,0,0,0};
-    select_line(tab,0);
-    for(int i=0;i<5;i++){
-        tab0[i]=selected_line[i];
+void compute_regulation(int tab[9][5]){ //Take lines 1 by 1, ponderate it by its position in time and space and add/substract the result to the default speed
+    speedA=default_speed;
+    speedB=default_speed;
+    for(int i=0;i<n_mem;i++){
+        select_line(tab,i);
+        speedA+=tab_time[i]*left_regulation(selected_line);
+        speedB+=tab_time[i]*right_regulation(selected_line);
     }
-
-    select_line(tab,1);
-    int tab1[5]={0,0,0,0,0};
-    for(int i=0;i<5;i++){
-        tab1[i]=selected_line[i];
-    }
-
-    select_line(tab,2);
-    int tab2[5]={0,0,0,0,0};
-    for(int i=0;i<5;i++){
-        tab2[i]=selected_line[i];
-    }
-
-    select_line(tab,3);
-    int tab3[5]={0,0,0,0,0};
-    for(int i=0;i<5;i++){
-        tab3[i]=selected_line[i];
-    }
-    select_line(tab,4);
-    int tab4[5]={0,0,0,0,0};
-    for(int i=0;i<5;i++){
-        tab4[i]=selected_line[i];
-    }
-    select_line(tab,5);
-    int tab5[5]={0,0,0,0,0};
-    for(int i=0;i<5;i++){
-        tab5[i]=selected_line[i];
-    }
-    select_line(tab,6);
-    int tab6[5]={0,0,0,0,0};
-    for(int i=0;i<5;i++){
-        tab6[i]=selected_line[i];
-    }
-    select_line(tab,7);
-    int tab7[5]={0,0,0,0,0};
-    for(int i=0;i<5;i++){
-        tab7[i]=selected_line[i];
-    }
-    select_line(tab,8);
-    int tab8[5]={0,0,0,0,0};
-    for(int i=0;i<5;i++){
-        tab8[i]=selected_line[i];
-    }
-    // Compute regulated speed of each wheel
-    speedA = default_speed+tab_time[0]*cal_g(tab0)+tab_time[1]*cal_g(tab1)+tab_time[2]*cal_g(tab2)+tab_time[3]*cal_g(tab3)+tab_time[4]*cal_g(tab4)+tab_time[5]*cal_g(tab5)+tab_time[6]*cal_g(tab6)+tab_time[7]*cal_g(tab7)+tab_time[8]*cal_g(tab8);
-    speedB = default_speed+tab_time[0]*cal_d(tab0)+tab_time[1]*cal_d(tab1)+tab_time[2]*cal_d(tab2)+tab_time[3]*cal_d(tab3)+tab_time[4]*cal_d(tab4)+tab_time[5]*cal_d(tab5)+tab_time[6]*cal_d(tab6)+tab_time[7]*cal_d(tab7)+tab_time[8]*cal_d(tab8);
-   
 }
 
-
+/*   //Can be used if the robot have to turn without folowing the black lines
 void turn_left(){
     move_forward(0, speedB);
     double ticks_for_turn = 400;
@@ -264,6 +219,7 @@ void turn_right(){
         }
     stop_motors();
 }
+*/
 
 void change_direction(){
     move_backward(default_speed,default_speed);
@@ -277,7 +233,7 @@ void change_direction(){
     ticks = actual_ticks - previous_ticks;
     }
     stop_motors();
-    clean_mem();
+    clean_memory();
     dir_changed=!dir_changed;
 }
 
@@ -285,18 +241,18 @@ void change_direction(){
 void move_regulation(){
     if ( moving_sensor[0]>threshold && moving_sensor[1]>threshold && moving_sensor[2]>threshold && moving_sensor[3]>threshold && moving_sensor[4]>threshold){
         stop_motors();
-        clean_mem();
+        clean_memory();
     }
     else if (moving_sensor[0]<threshold && moving_sensor[1]>threshold && moving_sensor[2]>threshold && moving_sensor[3]>threshold && moving_sensor[4]<threshold){
         stop_motors();
-        clean_mem();
+        clean_memory();
     }
     else if (memory[0][0]==1 || memory[0][1]==1 || memory[0][2]==1 || memory[0][3]==1 || memory[0][4]==1){
         move_forward(speedA,speedB);
     }
     else{
         stop_motors();
-        clean_mem();
+        clean_memory();
     }
 }
 
@@ -310,16 +266,16 @@ void set_dest(int n_bureau){
 
 void move(){
     isBusy=true;
-    clean_mem();
+    clean_memory();
     while((pos!=dest)){
         if (((dest<pos)&&(!dir_changed))||((dest>pos)&&(dir_changed))){
             change_direction();
-            clean_mem();
+            clean_memory();
         }
         switch_ultrasounds();
         if((read_ultrasound1()<30)||(read_ultrasound2()<30)){
             stop_motors();
-            clean_mem();
+            clean_memory();
         }
         else{
         acquisition();
@@ -330,13 +286,13 @@ void move(){
         else if(memory[0][0]==1 && memory[0][4]==1){
             Office_detected=false;
         }
-        Compute_regulation(memory);      
+        compute_regulation(memory);      
         move_regulation();
         }
     }
     if (pos==dest){
         stop_motors();
-        clean_mem();
+        clean_memory();
         isBusy=false;
     }
 }
